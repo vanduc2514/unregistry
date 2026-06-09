@@ -102,7 +102,7 @@ func TestUnregistryPushPull(t *testing.T) {
 		require.NoError(t, err, "Failed to push image '%s' to unregistry", registryImage)
 		assert.NotContains(t, output, "Layer already exists")
 
-		img, _, err = remoteCli.ImageInspectWithRaw(ctx, imageName)
+		img, _, err = remoteCli.ImageInspectWithRaw(ctx, registryImage)
 		require.NoError(t, err, "Pushed image should appear in the remote Docker")
 		assert.Equal(t, platformDigest, img.ID, "Image ID should match platform-specific image digest")
 
@@ -153,8 +153,8 @@ func TestUnregistryPushPull(t *testing.T) {
 		}
 
 		// Remove the image from remote Docker and try to pull it again.
-		_, err = remoteCli.ImageRemove(ctx, imageName, image.RemoveOptions{PruneChildren: true})
-		require.NoError(t, err, "Failed to remove image '%s' from remote Docker", imageName)
+		_, err = remoteCli.ImageRemove(ctx, registryImage, image.RemoveOptions{PruneChildren: true})
+		require.NoError(t, err, "Failed to remove image '%s' from remote Docker", registryImage)
 
 		require.ErrorContains(
 			t, pullImage(ctx, localCli, registryImage, image.PullOptions{Platform: platform}),
@@ -228,17 +228,17 @@ func TestUnregistryPushPull(t *testing.T) {
 		// Check the image in remote Docker is the same as in local Docker.
 		remoteSummary, err := remoteCli.ImageList(ctx, image.ListOptions{
 			Filters: filters.NewArgs(
-				filters.Arg("reference", imageName),
+				filters.Arg("reference", registryImage),
 			),
 			Manifests: true,
 		})
-		require.NoError(t, err, "Failed to list image '%s' in remote Docker", imageName)
-		require.Len(t, remoteSummary, 1, "Image '%s' should be available in remote Docker", imageName)
+		require.NoError(t, err, "Failed to list image '%s' in remote Docker", registryImage)
+		require.Len(t, remoteSummary, 1, "Image '%s' should be available in remote Docker", registryImage)
 		assert.Equal(t, summary[0].ID, remoteSummary[0].ID, "Image ID should match after pushing to unregistry")
 
 		remoteManifests := remoteSummary[0].Manifests
 		require.Len(
-			t, remoteManifests, len(platforms), "Remote image '%s' should have %d manifests", imageName,
+			t, remoteManifests, len(platforms), "Remote image '%s' should have %d manifests", registryImage,
 			len(platforms),
 		)
 		remoteManifestDigests := make([]string, len(remoteManifests))
@@ -280,9 +280,11 @@ func TestUnregistryPushPull(t *testing.T) {
 			if !client.IsErrNotFound(err) {
 				assert.NoError(t, err)
 			}
-			_, err = remoteCli.ImageRemove(ctx, imageName, image.RemoveOptions{PruneChildren: true})
-			if !client.IsErrNotFound(err) {
-				assert.NoError(t, err)
+			for _, img := range []string{imageName, registryImage} {
+				_, err = remoteCli.ImageRemove(ctx, img, image.RemoveOptions{PruneChildren: true})
+				if !client.IsErrNotFound(err) {
+					assert.NoError(t, err)
+				}
 			}
 		})
 
@@ -293,6 +295,8 @@ func TestUnregistryPushPull(t *testing.T) {
 				"Failed to pull image '%s' to remote Docker for platform '%s'", imageName, platform,
 			)
 		}
+		require.NoError(t, remoteCli.ImageTag(ctx, imageName, registryImage),
+			"Failed to tag remote image '%s' as '%s'", imageName, registryImage)
 
 		// Test 1: Pull available platforms - should succeed.
 		for _, platform := range availablePlatforms {
@@ -379,7 +383,7 @@ func TestUnregistryPushPull(t *testing.T) {
 		require.NoError(t, err, "Failed to push image '%s' to unregistry", registryImage)
 
 		// Verify the image appears in remote Docker with the external registry prefix.
-		_, _, err = remoteCli.ImageInspectWithRaw(ctx, imageName)
+		_, _, err = remoteCli.ImageInspectWithRaw(ctx, registryImage)
 		require.NoError(t, err, "Pushed image should appear in remote Docker with external registry prefix")
 
 		// Remove the image locally before pulling it back.
@@ -470,7 +474,7 @@ func TestUnregistryPushPull(t *testing.T) {
 			remoteSummary, err := remoteCli.ImageList(
 				ctx, image.ListOptions{
 					Filters: filters.NewArgs(
-						filters.Arg("reference", tt.image),
+						filters.Arg("reference", registryImage),
 					),
 					Manifests: true,
 				},
