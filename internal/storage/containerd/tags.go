@@ -16,17 +16,16 @@ import (
 // tagService implements distribution.TagService backed by the containerd image store.
 type tagService struct {
 	client *client.Client
-	// canonicalRepo is the repository reference in a normalized form, the way containerd image store expects it,
-	// for example, "docker.io/library/ubuntu"
-	canonicalRepo reference.Named
+	// repo is the repository reference stored in containerd, including the original registry host.
+	repo reference.Named
 }
 
 // Get retrieves an image descriptor by its tag from the containerd image store.
 func (t *tagService) Get(ctx context.Context, tag string) (distribution.Descriptor, error) {
-	ref, err := reference.WithTag(t.canonicalRepo, tag)
+	ref, err := reference.WithTag(t.repo, tag)
 	if err != nil {
 		return distribution.Descriptor{}, distribution.ErrManifestUnknown{
-			Name: t.canonicalRepo.Name(),
+			Name: t.repo.Name(),
 			Tag:  tag,
 		}
 	}
@@ -57,7 +56,7 @@ func (t *tagService) Get(ctx context.Context, tag string) (distribution.Descript
 // It also sets garbage collection labels on the image content in the containerd content store to prevent it from being
 // deleted by garbage collection.
 func (t *tagService) Tag(ctx context.Context, tag string, desc distribution.Descriptor) error {
-	ref, err := reference.WithTag(t.canonicalRepo, tag)
+	ref, err := reference.WithTag(t.repo, tag)
 	if err != nil {
 		return err
 	}

@@ -23,8 +23,8 @@ func (r *registry) Scope() distribution.Scope {
 }
 
 // Repository returns an instance of repository for the given name.
-func (r *registry) Repository(_ context.Context, name reference.Named) (distribution.Repository, error) {
-	return newRepository(r.client, name), nil
+func (r *registry) Repository(ctx context.Context, name reference.Named) (distribution.Repository, error) {
+	return newRepository(ctx, r.client, name)
 }
 
 // Repositories should return a list of repositories in the registry but it's not supported for simplicity.
